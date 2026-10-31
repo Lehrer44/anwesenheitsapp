@@ -54,6 +54,16 @@ function assertStatusBorders(state:State){
  }
  assert.equal(checked,state.students.length*(state.sessions.length+1));
 }
+// Check the header/date columns and name rows separately from status cells.
+const borderRecords=[...styles.match(/<borders[^>]*>(.*?)<\/borders>/)![1].matchAll(/<border>.*?<\/border>/g)].map(m=>m[0]);
+function resolvedBorder(address:string){return borderRecords[Number(format(address).match(/borderId="(\d+)"/)![1])];}
+for(const address of ['C1','D1']){
+ for(const side of ['left','right'])assert.match(resolvedBorder(address),new RegExp(`<${side} style="thin">`),`${address}: date column divider`);
+}
+for(const address of ['B3','B4','B6']){
+ assert.match(resolvedBorder(address),/<top style="thin">/,`${address}: name row top`);
+ assert.match(resolvedBorder(address),new RegExp(`<bottom style="${address==='B3'?'thin':'medium'}">`),`${address}: name row bottom`);
+}
 assertStatusBorders(s);
 assertStatusBorders(historical);
 assertStatusBorders(wide);
