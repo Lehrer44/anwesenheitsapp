@@ -7,7 +7,8 @@ for(const date of ['2026-10-01','2026-10-08'])mutate(s,{action:'session',date});
 for(const [i,status]of ['anwesend','abwesend','entschuldigt'].entries())mutate(s,{action:'mark',date:'2026-10-08',id:s.students[i].id,status});
 const files=entries(makeXlsx(s)),sheet=files['xl/worksheets/sheet1.xml'],styles=files['xl/styles.xml'];
 function cell(xml:string,address:string){const match=xml.match(new RegExp(`<c r="${address}" s="(\\d+)"[^>]*>(.*?)</c>`));assert.ok(match,`Missing cell ${address}`);return {style:Number(match[1]),body:match[2]};}
-function format(address:string){return [...styles.matchAll(/<xf numFmtId=.*?<\/xf>/g)][cell(sheet,address).style][0];}
+function cellFormats(styles:string){return [...styles.match(/<cellXfs[^>]*>(.*?)<\/cellXfs>/)![1].matchAll(/<xf\b[^>]*>.*?<\/xf>/g)].map(m=>m[0]);}
+function format(address:string){return cellFormats(styles)[cell(sheet,address).style];}
 assert.match(sheet,/rightToLeft="1"/);assert.match(sheet,/topLeftCell="C2"/);
 for(const width of ['4','18','10.77734375','4.5546875'])assert.ok(sheet.includes(`width="${width}"`));
 assert.ok([...sheet.matchAll(/<row [^>]*>/g)].every(m=>m[0].includes('ht="22.05"')));
@@ -17,7 +18,7 @@ assert.match(cell(sheet,'D4').body,/>abwesend<\/t>/);assert.match(cell(sheet,'D6
 assert.match(cell(sheet,'E4').body,/<f>COUNTIF\(C4:D4,&quot;abwesend&quot;\)<\/f><v>1<\/v>/);
 assert.match(cell(sheet,'E6').body,/<v>0<\/v>/);assert.ok(sheet.includes('A2:E2'));assert.ok(!sheet.includes('Schüler ·'));
 assert.match(styles,/rgb="FFFF6161"/);assert.match(styles,/rgb="FF0086EA"/);assert.match(format('D4'),/fontId="2" fillId="2"/);assert.match(format('D6'),/fontId="2" fillId="3"/);
-assert.match(format('A3'),/borderId="1"/);assert.match(format('D3'),/borderId="0"/);assert.match(format('E3'),/borderId="2"/);assert.match(format('A4'),/borderId="7"/);assert.match(format('D4'),/borderId="6"/);
+assert.match(format('A3'),/borderId="2"/);assert.match(format('D3'),/borderId="1"/);assert.match(format('E3'),/borderId="3"/);assert.match(format('A4'),/borderId="8"/);assert.match(format('D4'),/borderId="7"/);
 assert.match(styles,/style="thin"/);assert.match(styles,/style="medium"/);
 const filtered=entries(makeXlsx(s,'2026-10-08','2026-10-08',{absent:'A & <fehlt> *?"',excused:'=E'}))['xl/worksheets/sheet1.xml'];
 assert.match(cell(filtered,'C4').body,/>A &amp; &lt;fehlt&gt; \*\?&quot;<\/t>/);assert.match(cell(filtered,'C6').body,/>=E<\/t>/);
@@ -33,4 +34,31 @@ const empty=entries(makeXlsx(s,'2030-01-01'))['xl/worksheets/sheet1.xml'];assert
 assert.ok(entries(makeXlsx(initial()))['xl/worksheets/sheet1.xml'].includes('r="C1"'));
 const wide:State=structuredClone(s);wide.sessions=Array.from({length:30},(_,i)=>({...s.sessions[1],date:`2026-11-${String(i+1).padStart(2,'0')}`}));
 assert.match(cell(entries(makeXlsx(wide))['xl/worksheets/sheet1.xml'],'AG4').body,/COUNTIF\(C4:AF4,/);
+
+// Resolve the actual border of every status cell, including blank presence cells.
+// Border zero is Excel's unbordered default and must never be used for the grid.
+function assertStatusBorders(state:State){
+ const files=entries(makeXlsx(state)),sheet=files['xl/worksheets/sheet1.xml'],styles=files['xl/styles.xml'];
+ const formats=cellFormats(styles),borders=[...styles.match(/<borders[^>]*>(.*?)<\/borders>/)![1].matchAll(/<border>.*?<\/border>/g)].map(m=>m[0]);
+ assert.ok(!borders[0].includes('style='));
+ assert.match(formats[0],/borderId="0"/);
+ const classRows=new Set([...sheet.matchAll(/<mergeCell ref="A(\d+):/g)].map(m=>Number(m[1])));
+ let checked=0;
+ for(const match of sheet.matchAll(/<c r="([A-Z]+)(\d+)" s="(\d+)"[^>]*>/g)){
+  const [,column,row,style]=match;
+  if(Number(row)===1||classRows.has(Number(row))||column==='A'||column==='B')continue;
+  const borderId=Number(formats[Number(style)].match(/borderId="(\d+)"/)![1]);
+  assert.ok(borderId>0,`${column}${row} must not use the default border`);
+  for(const side of ['left','right','top','bottom'])assert.match(borders[borderId],new RegExp(`<${side} style="(?:thin|medium)">`),`${column}${row}: missing ${side} border`);
+  checked++;
+ }
+ assert.equal(checked,state.students.length*(state.sessions.length+1));
+}
+assertStatusBorders(s);
+assertStatusBorders(historical);
+assertStatusBorders(wide);
+const allStatuses=structuredClone(s);
+allStatuses.sessions=Array.from({length:6},(_,i)=>({...structuredClone(s.sessions[0]),date:`2026-12-0${i+1}`,marks:Object.fromEntries(s.students.map(p=>[p.id,['anwesend','abwesend','entschuldigt'][i%3]])) as State['sessions'][number]['marks']}));
+assertStatusBorders(allStatuses);
+
 console.log('Export checks passed: reference layout, RTL, class numbering, colors/borders, statuses, counters, literal custom labels, date filtering, empty and wide exports.');
