@@ -22,6 +22,12 @@ Die Anwesenheitstabelle wird von rechts nach links gelesen: Nummer (je Klasse ab
 
 In der kompakten Klassenansicht sind Namen rechtsbündig. Für noch nicht erfasste Schüler ist im Formular „abwesend“ vorausgewählt; vorhandene gespeicherte Status bleiben erhalten. Erst **Anwesenheit senden** speichert die Meldung. Der Sammelbutton „Alle anwesend“ entfällt. Namen in der Tabelle, Klassenkachel und Meldungsansicht verwenden bevorzugt Calibri (mit System-Ersatzschrift, falls die Schrift auf dem Gerät fehlt).
 
+## Excel-Export
+
+Der Excel-Export folgt der Vorlage: Leserichtung rechts nach links, Nummerierung je Klasse ab 1, Calibri 11, Zeilenhöhe 22,05 Punkt und Spaltenbreiten 4 / 18 / 10,77734375 / 4,5546875 (Nummer / Name / Termine / Fehlzeiten). Klassenbänder und Außenkanten sind stärker umrandet, die einzelnen Zellen dünn. Die Kopfzeile verwendet „اسم“ für Namen und „غياب“ für Fehlzeiten. Anwesend bleibt leer, abwesend erscheint rot und entschuldigt blau, jeweils mit weißer Schrift. „X“ bedeutet zum Termin nicht im Kurs, „?“ bedeutet noch nicht gemeldet. Unterrichtsausfälle behalten ihre Beschriftung.
+
+Die letzte Spalte zählt ausschließlich unentschuldigte Fehlzeiten im gewählten Zeitraum. Bei eindeutigen Zelltexten enthält sie eine COUNTIF-Formel mit gespeichertem Ergebnis. Bei leeren oder mehrdeutigen eigenen Zelltexten wird die korrekte Anzahl direkt aus den Statusdaten ausgegeben. Eigene Zelltexte werden als Text behandelt, auch wenn sie mit einem Gleichheitszeichen beginnen.
+
 ## Kompakte Verwaltung
 
 Die Kursauswahl und die Aktionen der jeweiligen Ansicht stehen in einer gemeinsamen Werkzeugzeile. Die Anwesenheitsliste zeigt Meldungen ohne bearbeitbare Auswahlfelder: grün für anwesend, rot für abwesend und blau für entschuldigt. Klassenname, Anzahl und Zahnrad bleiben beim horizontalen Scrollen sichtbar. Unter **Links** zeigen die Kacheln keine Schülerzahl mehr; **Anzeigen** öffnet die jeweilige Klassenansicht.
