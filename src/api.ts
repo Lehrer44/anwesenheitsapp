@@ -1,8 +1,9 @@
+import {getReadOnlyLink,manageReadOnlyLink,registerReadOnlyViewer,watchReadOnlyCourse,submitClassReport} from './firebase-read-only';
 import {ownerRead,ownerAction,watchOwnerCourse} from './firebase-repository';
 import {signInAnonymously} from 'firebase/auth';
 import {createAccountAccess} from './account-auth';
 import {auth,db,configured} from './firebase';
-import {collection,doc,getDoc,getDocs,onSnapshot,query,runTransaction,serverTimestamp,where,writeBatch,type Unsubscribe} from 'firebase/firestore';
+import {collection,doc,getDoc,getDocs,onSnapshot,query,where,writeBatch,type Unsubscribe} from 'firebase/firestore';
 import {initial,mutate,type State} from './model';
 import {documentsFor,groupState,tokenHash,type Channel,type Lesson} from './firebase-data';
 export {configured};
@@ -43,14 +44,7 @@ export async function courseRequest(body:any,access:Access):Promise<Data>{
   if(body){
    if(body.action!=='submit')throw Error('Nur die eigene Klassenmeldung ist erlaubt.');
    await groupUser();const {db}=services(),hash=await tokenHash(access.token);
-   await runTransaction(db,async tx=>{
-    const parent=await tx.get(doc(db,'channels',hash));
-    if(!parent.exists()||!parent.data().active||parent.data().courseId!==access.course)throw Error('Dieser Klassenlink ist ungültig oder wurde erneuert.');
-    const ref=doc(db,'channels',hash,'lessons',String(body.date)),snap=await tx.get(ref);
-    if(!snap.exists())throw Error('Termin nicht gefunden.');
-    const channel=parent.data() as Channel,state=groupState(channel,[snap.data() as Lesson]);mutate(state,body,state.groups[0]);
-    tx.update(ref,{marks:state.sessions[0].marks,reportedAt:serverTimestamp()});
-   });
+   await submitClassReport(db,hash,access.course,String(body.date),body.marks);
   }
   return await groupRead(access);
  }
@@ -74,4 +68,12 @@ export async function watchCourse(access:Access,onChange:(data:Data)=>void,onErr
   owner();stops.push(watchOwnerCourse(db,access.course,({state,meta})=>{if(!stopped)onChange({course:access.course,role:'admin',state,version:meta.version});},fail));
  }
  return ()=>{stopped=true;stops.forEach(stop=>stop());};
+}
+
+export async function readOnlyLink(course:string){owner();return getReadOnlyLink(services().db,course);}
+export async function changeReadOnlyLink(course:string,action:'create'|'renew'|'revoke'){return manageReadOnlyLink(services().db,owner(),course,action);}
+export async function watchReadOnly(access:{course:string,token:string},onChange:(state:State)=>void,onError:(error:Error)=>void){
+ await groupUser();const {db,auth}=services(),uid=auth.currentUser!.uid;
+ const hash=await registerReadOnlyViewer(db,uid,access.course,access.token);
+ return watchReadOnlyCourse(db,uid,access.course,hash,onChange,onError);
 }

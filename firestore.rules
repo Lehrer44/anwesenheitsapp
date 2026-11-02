@@ -15,6 +15,12 @@ service cloud.firestore {
   //   cancelled, roster, rosterIds, marks, reportedAt:timestamp|null.
   // Groups can only replace their own complete marks + server timestamp.
   // A channel path is a bearer credential, just like the existing secret link.
+  // Read-only sharing: shares/{hash}: ownerUid,courseId; exact get only.
+  // viewers/{uid}/courses/{course}: shareHash; binds an authenticated reader.
+  // courses/{id}/public/summary: title, students<=5000, sanitized groups<=30.
+  // publicSessions/{date}: date,cancelled,roster,marks,groupId,reportedAt.
+  // private/links: hashes map<=30 (never disclosed to viewers).
+  // private/share: raw token string64..160 (managers only).
   function signed() { return request.auth != null; }
   function verified() {
    return signed() && request.auth.token.email_verified == true
@@ -88,6 +94,62 @@ service cloud.firestore {
    let parent=getAfter(/databases/$(database)/documents/channels/$(hash));
    return d.courseId==parent.data.courseId && d.groupId==parent.data.groupId && d.ownerUid==parent.data.ownerUid;
   }
+  function activeShare(hash,courseId) {
+   let share=get(/databases/$(database)/documents/shares/$(hash)).data;
+   return share.courseId==courseId
+    && get(/databases/$(database)/documents/courses/$(courseId)).data.ownerUid==share.ownerUid;
+  }
+  function viewer(courseId) {
+   return signed() && activeShare(get(/databases/$(database)/documents/viewers/$(request.auth.uid)/courses/$(courseId)).data.shareHash,courseId);
+  }
+  function validSummary(d) {
+   return d.keys().hasAll(['title','students','groups']) && d.keys().hasOnly(['title','students','groups'])
+    && text(d.title,100) && d.students is list && d.students.size()<=5000
+    && d.groups is list && d.groups.size()<=30;
+  }
+  function validPublicSession(d,day) {
+   return d.keys().hasAll(['date','cancelled','roster','marks','groupId','reportedAt'])
+    && d.keys().hasOnly(['date','cancelled','roster','marks','groupId','reportedAt'])
+    && date(day) && d.date==day && text(d.cancelled,200) && d.roster is list && d.roster.size()<=5000
+    && marks(d.marks) && (d.groupId=='' || id(d.groupId))
+    && (d.reportedAt==null || (d.reportedAt is timestamp && d.reportedAt<=request.time));
+  }
+  function mirroredReport(d,day) {
+   let mirror=getAfter(/databases/$(database)/documents/courses/$(d.courseId)/publicSessions/$(day)).data;
+   return mirror.groupId==d.groupId && mirror.reportedAt==request.time
+    && !mirror.marks.diff(d.marks).affectedKeys().hasAny(d.rosterIds);
+  }
+  function sharedReport(d,day) {
+   return !exists(/databases/$(database)/documents/courses/$(d.courseId)/private/share) || mirroredReport(d,day);
+  }
+  function groupMirror(courseId,day) {
+   let d=request.resource.data;
+   let hash=get(/databases/$(database)/documents/courses/$(courseId)/private/links).data.hashes[d.groupId];
+   let lesson=getAfter(/databases/$(database)/documents/channels/$(hash)/lessons/$(day)).data;
+   return activeChannel(hash) && lesson.courseId==courseId && lesson.groupId==d.groupId
+    && lesson.reportedAt==request.time && d.reportedAt==request.time
+    && d.diff(resource.data).affectedKeys().hasOnly(['marks','groupId','reportedAt'])
+    && d.marks.diff(resource.data.marks).affectedKeys().hasOnly(lesson.rosterIds)
+    && !d.marks.diff(lesson.marks).affectedKeys().hasAny(lesson.rosterIds);
+  }
+  match /shares/{hash} {
+   allow get: if (approvedAccount() && resource==null) || (signed() && activeShare(hash,resource.data.courseId));
+   allow list,update: if false;
+   allow create: if hash.matches('^[a-f0-9]{64}$')
+    && request.resource.data.keys().hasAll(['ownerUid','courseId']) && request.resource.data.keys().hasOnly(['ownerUid','courseId'])
+    && id(request.resource.data.courseId) && id(request.resource.data.ownerUid)
+    && owner(request.resource.data.courseId)
+    && request.resource.data.ownerUid==get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.ownerUid;
+   allow delete: if manages(resource.data.ownerUid);
+  }
+  match /viewers/{uid}/courses/{courseId} {
+   allow get,delete: if signed() && request.auth.uid==uid;
+   allow list: if false;
+   allow create,update: if signed() && request.auth.uid==uid
+    && request.resource.data.keys().hasAll(['shareHash']) && request.resource.data.keys().hasOnly(['shareHash'])
+    && request.resource.data.shareHash is string && request.resource.data.shareHash.matches('^[a-f0-9]{64}$')
+    && activeShare(request.resource.data.shareHash,courseId);
+  }
   match /courses/{courseId} {
    allow read: if manages(resource.data.ownerUid);
    allow create: if approvedAccount() && id(courseId) && validCourse(request.resource.data)
@@ -97,9 +159,27 @@ service cloud.firestore {
    // Delete the root and private roster together. Active class links require an existing course.
    allow delete: if owner(courseId) && !existsAfter(/databases/$(database)/documents/courses/$(courseId)/private/config);
    match /private/{configId} {
-    allow read: if configId=='config' && owner(courseId);
+    allow read: if configId in ['config','links','share'] && owner(courseId);
     allow create,update: if configId=='config' && ownerAfter(courseId) && validConfig(request.resource.data);
+    allow create,update: if configId=='links' && ownerAfter(courseId)
+     && request.resource.data.keys().hasAll(['hashes']) && request.resource.data.keys().hasOnly(['hashes'])
+     && request.resource.data.hashes is map && request.resource.data.hashes.size()<=30;
+    allow create,update: if configId=='share' && owner(courseId)
+     && request.resource.data.keys().hasAll(['token']) && request.resource.data.keys().hasOnly(['token'])
+     && request.resource.data.token is string && request.resource.data.token.matches('^[A-Za-z0-9-]{64,160}$');
+    allow delete: if configId in ['links','share'] && owner(courseId);
     allow delete: if configId=='config' && owner(courseId) && !existsAfter(/databases/$(database)/documents/courses/$(courseId));
+   }
+   match /public/{summaryId} {
+    allow read: if summaryId=='summary' && (owner(courseId) || viewer(courseId));
+    allow create,update: if summaryId=='summary' && ownerAfter(courseId) && validSummary(request.resource.data);
+    allow delete: if summaryId=='summary' && owner(courseId);
+   }
+   match /publicSessions/{day} {
+    allow read: if owner(courseId) || viewer(courseId);
+    allow create: if ownerAfter(courseId) && validPublicSession(request.resource.data,day);
+    allow update: if validPublicSession(request.resource.data,day) && (ownerAfter(courseId) || groupMirror(courseId,day));
+    allow delete: if owner(courseId);
    }
    match /sessions/{day} {
     allow read: if owner(courseId);
@@ -129,7 +209,7 @@ service cloud.firestore {
      || (activeChannel(hash) && resource.data.cancelled=='' && resource.data.rosterIds.size()>0
       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['marks','reportedAt'])
       && request.resource.data.marks.keys().hasAll(resource.data.rosterIds)
-      && request.resource.data.reportedAt==request.time));
+      && request.resource.data.reportedAt==request.time && sharedReport(request.resource.data,day)));
     allow delete: if manages(resource.data.ownerUid) && owner(resource.data.courseId);
    }
   }

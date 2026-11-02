@@ -327,3 +327,13 @@
  .preview-table th:first-child{width:104px}.preview-table th:last-child{width:32px}
  .preview-table th,.preview-table td{padding:8px 5px}.preview-table .cellstatus{font-size:12px}.preview-name{font-size:19px}
 }
+
+/* The shared course is a table without navigation or action controls. */
+.read-only-page{max-width:1800px;margin:0 auto;padding:28px 22px}
+.read-only-heading{display:flex;justify-content:space-between;align-items:start;gap:20px;margin-bottom:20px}
+.read-only-heading h1{font-size:24px;margin:5px 0 10px}.read-only-heading p{color:var(--secondary-text)}
+.read-only-connection{font-size:12px;white-space:nowrap;padding:8px 12px;background:#dceee1;border-radius:8px}.read-only-connection.offline{background:#f5e9cb;color:#745c23}
+.read-only-matrix thead th>span{display:block;padding:14px 8px}.read-only-matrix thead small{display:block;white-space:normal;margin-top:5px}
+.read-only-matrix .student-column{text-align:right}.read-only-matrix .group-heading{justify-content:space-between}
+.read-only-page .matrix-panel{width:100%;min-width:0}.share-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.share-dialog h2{display:flex;gap:10px;align-items:center}.share-dialog>p{margin:14px 0;line-height:1.6}
+@media(max-width:600px){.read-only-page{padding:18px 10px}.read-only-heading{flex-direction:column;gap:12px}.read-only-heading h1{font-size:21px}}
