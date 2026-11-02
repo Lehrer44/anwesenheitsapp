@@ -11,7 +11,8 @@ try{
  state.sessions[0].roster=state.sessions[0].roster.filter(p=>p.id!==state.students[2].id);state.sessions[1].cancelled='Ferien';
  const html=renderToStaticMarkup(createElement(ReadOnlyTable,{state}));
  for(const tag of ['button','input','select','textarea','a'])assert.ok(!new RegExp('<'+tag+'(?:\\s|>)').test(html),`Read-only table has ${tag}`);
- for(const text of ['Ada','Ben','Clara','01.10.2026','08.10.2026','abwesend','nicht im Kurs','Ferien'])assert.ok(html.includes(text),`Missing ${text}`);
+ for(const text of ['اسم','Ada','Ben','Clara','01.10.2026','08.10.2026','abwesend','nicht im Kurs','Ferien'])assert.ok(html.includes(text),`Missing ${text}`);
+ assert.ok(!html.includes('Schülername'));assert.ok(!html.includes('>?<'));assert.ok(html.includes('cellstatus offen"></span>'));
  assert.ok(html.includes('dir="rtl"'));assert.equal((html.match(/class="number-column">1<\/td>/g)||[]).length,2);
  const empty=renderToStaticMarkup(createElement(ReadOnlyTable,{state:initial()}));assert.ok(empty.includes('Noch keine Termine'));assert.ok(!empty.includes('<button'));
  console.log('Read-only UI checks passed: all dates, classes and states, RTL, class numbering, empty list and no buttons or editing controls.');
