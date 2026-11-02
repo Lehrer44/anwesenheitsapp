@@ -1,9 +1,10 @@
+import {getReadOnlyLink,manageReadOnlyLink,registerReadOnlyViewer,watchReadOnlyCourse,submitClassReport} from '../src/firebase-read-only.ts';
 import {readFileSync} from 'node:fs';
 import {before,after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {initializeTestEnvironment,assertFails,assertSucceeds,type RulesTestEnvironment} from '@firebase/rules-unit-testing';
 import {collection,collectionGroup,doc,getDoc,getDocs,onSnapshot,query,serverTimestamp,setDoc,updateDoc,deleteDoc,where,writeBatch,Timestamp,type Firestore} from 'firebase/firestore';
-import {initial,mutate} from '../src/model.ts';
+import {initial,mutate,type State} from '../src/model.ts';
 import {documentsFor,tokenHash,type Lesson} from '../src/firebase-data.ts';
 import {ownerAction,ownerRead,watchOwnerCourse} from '../src/firebase-repository.ts';
 import {saveCourseLists} from '../src/firebase-course-management.ts';
@@ -390,4 +391,71 @@ test('confirmed edits immediately return the saved state and live listeners publ
   assert.ok(seen.some(v=>v.meta.version===saved.meta.version&&v.state.groups.length===0));assert.deepEqual(errors,[]);
   for(const value of seen)assert.deepEqual(value.state,value.meta.version===saved.meta.version?saved.state:last.state);
  }finally{emptyStop();}
+});
+
+
+test('read-only links: live reports, safe data, denied writes, renew, revoke and orphan protection',async()=>{
+ const id='shared-course',state=initial(2);
+ for(let i=0;i<2;i++)mutate(state,{action:'addStudents',names:'Shared pupil '+i,group:state.groups[i].id});
+ mutate(state,{action:'session',date:day});
+ const batch=writeBatch(ownerDb);for(const [path,value] of await documentsFor(state,id,'owner',0))batch.set(doc(ownerDb,path),value);await batch.commit();
+ const reader=env.authenticatedContext('read-device',{firebase:{sign_in_provider:'anonymous'}}).firestore() as unknown as Firestore;
+ const group=env.authenticatedContext('shared-class',{firebase:{sign_in_provider:'anonymous'}}).firestore() as unknown as Firestore;
+ const summaryRef=doc(reader,'courses',id,'public','summary'),sessionRef=doc(reader,'courses',id,'publicSessions',day);
+ await assertFails(getDoc(summaryRef));await assertFails(getDoc(sessionRef));await assertFails(getDoc(doc(publicDb,'courses',id,'public','summary')));
+ await assertFails(manageReadOnlyLink(otherDb,'other-owner',id,'create'));
+ await assertFails(manageReadOnlyLink(reader,'read-device',id,'create'));
+ const token=await assertSucceeds(manageReadOnlyLink(ownerDb,'owner',id,'create'));
+ assert.equal(await getReadOnlyLink(ownerDb,id),token);assert.equal(await manageReadOnlyLink(ownerDb,'owner',id,'create'),token);
+ const hash=await registerReadOnlyViewer(reader,'read-device',id,token);
+ const summary=await assertSucceeds(getDoc(summaryRef));assert.equal(summary.data()!.students.length,2);
+ const text=JSON.stringify(summary.data());for(const g of state.groups){assert.ok(!text.includes(g.token!));assert.ok(!text.includes(await tokenHash(g.token!)));}
+ await assertSucceeds(getDocs(collection(reader,'courses',id,'publicSessions')));
+ for(const path of ['courses','shares','channels'])await assertFails(getDocs(collection(reader,path)));
+ for(const path of ['courses/'+id,'courses/'+id+'/private/config','courses/'+id+'/private/links','courses/'+id+'/private/share','courses/'+id+'/sessions/'+day])await assertFails(getDoc(doc(reader,path)));
+ for(const ref of [summaryRef,sessionRef,doc(reader,'courses',id),doc(reader,'courses',id,'sessions',day)]){
+  await assertFails(updateDoc(ref,{title:'Tampered'}));await assertFails(deleteDoc(ref));await assertFails(setDoc(ref,{title:'Tampered'}));
+ }
+ await assertFails(setDoc(doc(reader,'courses',id,'publicSessions','2090-01-01'),{date:'2090-01-01'}));
+ await assertFails(setDoc(doc(reader,'viewers','other-user','courses',id),{shareHash:hash}));
+ await assertFails(setDoc(doc(reader,'viewers','read-device','courses','course-two'),{shareHash:hash}));
+ await assertFails(setDoc(doc(reader,'viewers','read-device','courses',id),{shareHash:hash,administrator:true}));
+ await assertFails(setDoc(doc(reader,'viewers','read-device','courses',id),{shareHash:'a'.repeat(64)}));
+ await assertFails(setDoc(doc(reader,'shares','b'.repeat(64)),{ownerUid:'owner',courseId:id}));
+ await assertFails(updateDoc(doc(reader,'shares',hash),{ownerUid:'read-device'}));
+ await assertFails(setDoc(doc(ownerDb,'shares','b'.repeat(64)),{ownerUid:'other-owner',courseId:id}));
+ await assertFails(setDoc(doc(ownerDb,'courses',id,'public','summary'),{title:1,students:[],groups:[]}));
+ await assertFails(updateDoc(doc(ownerDb,'courses',id,'public','summary'),{title:'x'.repeat(101)}));
+ await assertFails(updateDoc(doc(ownerDb,'courses',id,'public','summary'),{extra:true}));
+ await assertFails(updateDoc(doc(ownerDb,'courses',id,'publicSessions',day),{date:'bad'}));
+ await assertFails(updateDoc(doc(ownerDb,'courses',id,'publicSessions',day),{cancelled:'x'.repeat(201)}));
+ const first=state.students[0].id,second=state.students[1].id,channel=await tokenHash(state.groups[0].token!);
+ // The bearer reader cannot forge a mirror without a simultaneous class report.
+ await assertFails(updateDoc(sessionRef,{groupId:state.groups[0].id,reportedAt:serverTimestamp(),['marks.'+first]:'anwesend'}));
+ // Once sharing is active, old clients cannot write a report without its mirror.
+ await assertFails(updateDoc(doc(group,'channels',channel,'lessons',day),{marks:{[first]:'anwesend'},reportedAt:serverTimestamp()}));
+ let latest:State|undefined,failure:Error|undefined;
+ const stop=watchReadOnlyCourse(reader,'read-device',id,hash,value=>{latest=value;},error=>{failure=error;latest=undefined;});
+ async function until(check:()=>boolean){for(let i=0;i<150;i++){if(check())return;await new Promise(r=>setTimeout(r,20));}assert.ok(check(),'Live update timed out');}
+ await until(()=>!!latest);assert.equal(failure,undefined);
+ await assertSucceeds(submitClassReport(group,channel,id,day,{[first]:'abwesend'}));
+ await until(()=>latest?.sessions[0].marks[first]==='abwesend');
+ // A class cannot alter another class through the mirror.
+ const forge=writeBatch(group);forge.update(doc(group,'channels',channel,'lessons',day),{marks:{[first]:'anwesend'},reportedAt:serverTimestamp()});forge.update(doc(group,'courses',id,'publicSessions',day),{groupId:state.groups[0].id,reportedAt:serverTimestamp(),['marks.'+first]:'anwesend',['marks.'+second]:'abwesend'});await assertFails(forge.commit());
+ await assertSucceeds(ownerAction(ownerDb,'owner',{action:'mark',date:day,id:first,status:'entschuldigt'},id));
+ await until(()=>latest?.sessions[0].marks[first]==='entschuldigt');
+ await assertSucceeds(ownerAction(ownerDb,'owner',{action:'session',date:future},id));await until(()=>latest?.sessions.length===2);
+ await saveCourseLists(ownerDb,'owner',[{id,title:state.title}],[{id,title:'Shared renamed'}]);await until(()=>latest?.title==='Shared renamed');
+ const fresh=await manageReadOnlyLink(ownerDb,'owner',id,'renew');assert.notEqual(fresh,token);
+ await until(()=>!!failure);assert.equal(latest,undefined);stop();
+ await assertFails(getDoc(summaryRef));await assertFails(getDoc(doc(reader,'shares',hash)));
+ await assert.rejects(registerReadOnlyViewer(reader,'read-device',id,token));
+ await registerReadOnlyViewer(reader,'read-device',id,fresh);await assertSucceeds(getDoc(summaryRef));
+ await manageReadOnlyLink(ownerDb,'owner',id,'revoke');await assertFails(getDoc(summaryRef));
+ assert.equal(await getReadOnlyLink(ownerDb,id),'');
+ const again=await manageReadOnlyLink(ownerDb,'owner',id,'create');assert.notEqual(again,fresh);
+ await registerReadOnlyViewer(reader,'read-device',id,again);
+ await saveCourseLists(ownerDb,'owner',[{id,title:'Shared renamed'}],[]);
+ await assertFails(getDoc(summaryRef));await assertFails(getDocs(collection(reader,'courses',id,'publicSessions')));
+ await assertFails(getDoc(doc(reader,'shares',await tokenHash(again))));
 });

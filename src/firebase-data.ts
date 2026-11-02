@@ -1,3 +1,4 @@
+import {readOnlySummary,readOnlySession} from './read-only-data.ts';
 import {Timestamp} from 'firebase/firestore';
 import {groupView, type State, type Status, type Student} from './model.ts';
 
@@ -39,6 +40,9 @@ export async function documentsFor(state:State,courseId:string,ownerUid:string,v
  const base='courses/'+courseId;
  out.set(base,{ownerUid,title:s.title,version,dates:s.sessions.map(d=>d.date)} satisfies Course);
  out.set(base+'/private/config',{students:s.students,groups:s.groups,demo:!!s.demo});
+ out.set(base+'/public/summary',readOnlySummary(s));
+ out.set(base+'/private/links',{hashes:Object.fromEntries(await Promise.all(s.groups.map(async g=>[g.id,await tokenHash(g.token!)])))});
+ for(const d of s.sessions)out.set(base+'/publicSessions/'+d.date,readOnlySession(d));
  for(const d of s.sessions)out.set(base+'/sessions/'+d.date,d);
  for(const g of s.groups) {
   const hash=await tokenHash(g.token!),view=groupView(s,g),path='channels/'+hash;

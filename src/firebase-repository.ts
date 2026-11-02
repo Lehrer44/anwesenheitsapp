@@ -8,6 +8,8 @@ export async function ownerRead(db:Firestore,course:string){
  const docs:Documents=new Map([[meta.ref.path,courseData],[config.ref.path,config.data()]]);
  sessions.forEach(d=>docs.set(d.ref.path,d.data()));
  const state:State={...config.data() as Pick<State,'students'|'groups'|'demo'>,title:courseData.title,sessions:sessions.docs.map(d=>d.data() as State['sessions'][number]).sort((a,b)=>a.date.localeCompare(b.date))};
+ const [summary,links,publicSessions]=await Promise.all([getDoc(doc(db,'courses',course,'public','summary')),getDoc(doc(db,'courses',course,'private','links')),getDocs(collection(db,'courses',course,'publicSessions'))]);
+ for(const snap of [summary,links,...publicSessions.docs])if(snap.exists())docs.set(snap.ref.path,snap.data());
  const lessons:Lesson[]=[];
  await Promise.all(state.groups.map(async g=>{
   const path='channels/'+await tokenHash(g.token!);
@@ -32,7 +34,7 @@ export async function ownerAction(db:Firestore,_uid:string,body:any,course:strin
     const config=before.get('courses/'+course+'/private/config');
     let state:State={...config,title:metadata.data()!.title,sessions:[...before].filter(([p])=>p.startsWith('courses/'+course+'/sessions/')).map(([,v])=>v).sort((a,b)=>a.date.localeCompare(b.date))};
     state=mergeLessons(state,[...before].filter(([p])=>p.startsWith('channels/')&&p.includes('/lessons/')).map(([,v])=>v));
-    normalizeLeaders(state);syncFutureSessions(state);mutate(state,body);syncFutureSessions(state);
+    normalizeLeaders(state);syncFutureSessions(state);if(body.action!=='prepareReadOnly')mutate(state,body);syncFutureSessions(state);
     const after=await documentsFor(state,course,loaded.meta.ownerUid,loaded.meta.version+1),changes=changesBetween(before,after);
     const newPaths=changes.sets.map(([p])=>p).filter(p=>!before.has(p));
     await Promise.all(newPaths.map(p=>tx.get(doc(db,p))));

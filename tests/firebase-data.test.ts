@@ -27,7 +27,7 @@ const beforeRename=await documentsFor(original,'course','owner',0);
 const afterRename=await documentsFor(renamed,'course','owner',1);
 const renameChanges=changesBetween(beforeRename,afterRename);
 assert.deepEqual(renameChanges.deletes,[]);
-assert.deepEqual(renameChanges.sets.map(([path])=>path).sort(),['courses/course',...await Promise.all(state.groups.map(async g=>'channels/'+await tokenHash(g.token!)))].sort());
+assert.deepEqual(renameChanges.sets.map(([path])=>path).sort(),['courses/course','courses/course/public/summary',...await Promise.all(state.groups.map(async g=>'channels/'+await tokenHash(g.token!)))].sort());
 for(const [path,value] of afterRename){
  if(path.startsWith('channels/')&&!path.includes('/lessons/')){
   assert.equal(groupState(value as Channel,[]).title,'Deutsch – Abendkurs');

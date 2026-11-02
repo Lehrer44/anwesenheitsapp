@@ -21,7 +21,7 @@ export async function saveCourseLists(db:Firestore,uid:string,original:CourseCho
     const after:Documents=new Map(before);
     for(const c of loaded){
      if(plan.deleted.some(d=>d.id===c.id)){for(const path of c.docs.keys())after.delete(path);}
-     else{const title=plan.renamed.find(r=>r.id===c.id)!.title,path='courses/'+c.id;after.set(path,{...before.get(path),title,version:c.meta.version+1});for(const channel of c.docs.keys())if(channel.startsWith('channels/')&&channel.split('/').length===2)after.set(channel,{...before.get(channel),title});}
+     else{const title=plan.renamed.find(r=>r.id===c.id)!.title,path='courses/'+c.id;after.set(path,{...before.get(path),title,version:c.meta.version+1});const summary=path+'/public/summary';if(before.has(summary))after.set(summary,{...before.get(summary),title});for(const channel of c.docs.keys())if(channel.startsWith('channels/')&&channel.split('/').length===2)after.set(channel,{...before.get(channel),title});}
     }
     for(const c of created)for(const [path,value] of c.docs)after.set(path,value);
     const changes=changesBetween(before,after);
