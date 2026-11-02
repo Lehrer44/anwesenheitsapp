@@ -1,15 +1,19 @@
 import {collection,doc,getDoc,getDocs,onSnapshot,onSnapshotsInSync,query,where,runTransaction,type Firestore,type Unsubscribe} from 'firebase/firestore';
 import {mutate,normalizeLeaders,syncFutureSessions,type State} from './model.ts';
 import {changesBetween,documentsFor,mergeLessons,tokenHash,type Course,type Lesson,type Documents} from './firebase-data.ts';
-export async function ownerRead(db:Firestore,course:string){
+export async function ownerRead(db:Firestore,course:string,includeProjections=false){
  const [meta,config,sessions]=await Promise.all([getDoc(doc(db,'courses',course)),getDoc(doc(db,'courses',course,'private','config')),getDocs(collection(db,'courses',course,'sessions'))]);
  if(!meta.exists()||!config.exists())throw Error('Kurs nicht gefunden.');
  const courseData=meta.data() as Course;
  const docs:Documents=new Map([[meta.ref.path,courseData],[config.ref.path,config.data()]]);
  sessions.forEach(d=>docs.set(d.ref.path,d.data()));
  const state:State={...config.data() as Pick<State,'students'|'groups'|'demo'>,title:courseData.title,sessions:sessions.docs.map(d=>d.data() as State['sessions'][number]).sort((a,b)=>a.date.localeCompare(b.date))};
- const [summary,links,publicSessions]=await Promise.all([getDoc(doc(db,'courses',course,'public','summary')),getDoc(doc(db,'courses',course,'private','links')),getDocs(collection(db,'courses',course,'publicSessions'))]);
- for(const snap of [summary,links,...publicSessions.docs])if(snap.exists())docs.set(snap.ref.path,snap.data());
+ // Normal course loading must not depend on optional sharing documents/rules.
+ // Mutations include these documents to keep projections and deletions atomic.
+ if(includeProjections){
+  const [summary,links,publicSessions]=await Promise.all([getDoc(doc(db,'courses',course,'public','summary')),getDoc(doc(db,'courses',course,'private','links')),getDocs(collection(db,'courses',course,'publicSessions'))]);
+  for(const snap of [summary,links,...publicSessions.docs])if(snap.exists())docs.set(snap.ref.path,snap.data());
+ }
  const lessons:Lesson[]=[];
  await Promise.all(state.groups.map(async g=>{
   const path='channels/'+await tokenHash(g.token!);
@@ -21,7 +25,7 @@ export async function ownerRead(db:Firestore,course:string){
 }
 export async function ownerAction(db:Firestore,_uid:string,body:any,course:string){
  for(let attempt=0;attempt<4;attempt++){
-  const loaded=await ownerRead(db,course);
+  const loaded=await ownerRead(db,course,true);
   try{
    return await runTransaction(db,async tx=>{
     const metadata=await tx.get(doc(db,'courses',course));
