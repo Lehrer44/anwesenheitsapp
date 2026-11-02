@@ -10,7 +10,7 @@ export async function saveCourseLists(db:Firestore,uid:string,original:CourseCho
  }));
  const affected=[...plan.renamed.map(c=>({id:c.id,title:c.previousTitle})),...plan.deleted];
  for(let attempt=0;attempt<4;attempt++){
-  const loaded=await Promise.all(affected.map(async c=>{const value=await ownerRead(db,c.id);if(value.meta.title!==c.title)throw Error('Die Listen wurden zwischenzeitlich geändert. Bitte den Dialog schließen und erneut öffnen.');return {id:c.id,...value};}));
+  const loaded=await Promise.all(affected.map(async c=>{const value=await ownerRead(db,c.id,true);if(value.meta.title!==c.title)throw Error('Die Listen wurden zwischenzeitlich geändert. Bitte den Dialog schließen und erneut öffnen.');return {id:c.id,...value};}));
   try{
    await runTransaction(db,async tx=>{
     // Missing course roots are deliberately unreadable; create rules reject ID collisions.

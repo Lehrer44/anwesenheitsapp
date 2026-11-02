@@ -459,3 +459,35 @@ test('read-only links: live reports, safe data, denied writes, renew, revoke and
  await assertFails(getDoc(summaryRef));await assertFails(getDocs(collection(reader,'courses',id,'publicSessions')));
  await assertFails(getDoc(doc(reader,'shares',await tokenHash(again))));
 });
+
+
+test('ordinary course loading works when optional sharing paths are not authorized',async()=>{
+ // Represents a deployed pre-sharing policy: only original course/config/
+ // session/channel reads are granted. Optional paths must never block loading.
+ const [host,port]=(process.env.FIRESTORE_EMULATOR_HOST||'127.0.0.1:8080').split(':');
+ const legacy=await initializeTestEnvironment({projectId:'demo-kursblick-legacy',firestore:{host,port:Number(port),rules:`rules_version = '2';
+ service cloud.firestore {match /databases/{database}/documents {
+ function owns(id){return request.auth!=null && get(/databases/$(database)/documents/courses/$(id)).data.ownerUid==request.auth.uid;}
+ match /courses/{id}{allow read:if request.auth!=null && resource.data.ownerUid==request.auth.uid;
+ match /private/{name}{allow read:if name=='config' && owns(id);}
+ match /sessions/{day}{allow read:if owns(id);}}
+ match /channels/{hash}{allow read:if request.auth!=null && resource.data.ownerUid==request.auth.uid;
+ match /lessons/{day}{allow read:if request.auth!=null && resource.data.ownerUid==request.auth.uid;}}
+ }}`}});
+ try{
+  const state=initial(7);for(let i=0;i<134;i++)mutate(state,{action:'addStudents',names:'Pupil '+i,group:state.groups[i%7].id});
+  for(let i=1;i<=14;i++)mutate(state,{action:'session',date:'2026-01-'+String(i).padStart(2,'0')});
+  const docs=await documentsFor(state,'legacy-course','legacy-owner',0);
+  await legacy.withSecurityRulesDisabled(async context=>{const db=context.firestore() as unknown as Firestore,batch=writeBatch(db);for(const [path,value] of docs)if(!path.includes('/public')&&!path.endsWith('/private/links'))batch.set(doc(db,path),value);await batch.commit();});
+  const db=legacy.authenticatedContext('legacy-owner',{email_verified:true,firebase:{sign_in_provider:'password'}}).firestore() as unknown as Firestore;
+  await assertFails(getDoc(doc(db,'courses','legacy-course','public','summary')));
+  await assertFails(getDoc(doc(db,'courses','legacy-course','private','links')));
+  await assertFails(getDocs(collection(db,'courses','legacy-course','publicSessions')));
+  const loaded=await assertSucceeds(ownerRead(db,'legacy-course'));
+  assert.equal(loaded.state.students.length,134);assert.equal(loaded.state.groups.length,7);assert.equal(loaded.state.sessions.length,14);
+  await assertFails(ownerRead(legacy.authenticatedContext('foreign-owner').firestore() as unknown as Firestore,'legacy-course'));
+  // Write paths must continue to require sharing authorization, never silently
+  // drop projections and expose stale attendance to an active reader.
+  await assertFails(ownerRead(db,'legacy-course',true));
+ }finally{await legacy.cleanup();}
+});
