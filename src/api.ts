@@ -15,7 +15,7 @@ import {saveCourseLists} from './firebase-course-management';
 export async function manageCourseLists(original:CourseChoice[],rows:CourseEdit[]){return saveCourseLists(services().db,owner(),original,rows);}
 function services(){if(!db||!auth)throw Error('Firebase ist noch nicht eingerichtet.');return {db,auth};}
 const accounts=createAccountAccess(auth,{continueUrl:typeof location==='undefined'?undefined:location.origin+location.pathname});
-export const session=accounts.session,ready=accounts.ready,watchAuth=accounts.watch,login=accounts.login,signup=accounts.signup,resetPassword=accounts.resetPassword,logout=accounts.logout;
+export const session=accounts.session,ready=accounts.ready,watchAuth=accounts.watch,login=accounts.login,resetPassword=accounts.resetPassword,logout=accounts.logout;
 export const pendingAccount=accounts.pending,verificationCooldown=accounts.cooldown,resendVerification=accounts.resend,checkVerification=accounts.check;
 async function groupUser(){const {auth}=services();await ready();if(!auth.currentUser)await signInAnonymously(auth);}
 function owner(){const user=session();if(!user)throw Error('Bitte mit einem bestätigten oder ausdrücklich freigeschalteten Konto anmelden.');return user.uid;}
