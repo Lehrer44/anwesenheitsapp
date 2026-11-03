@@ -3,7 +3,8 @@ service cloud.firestore {
  match /databases/{database}/documents {
   // Prototype data model:
   // Verified Firebase Auth token: administrator:true, set only by trusted operator.
-  // Approved administrators manage all courses; other owners only their own.
+  // Trusted courseAccessApproved:true grants verified teachers their own courses.
+  // Explicitly provisioned administrators manage all courses.
   // courses/{id}: ownerUid:string (immutable), title:string<=100,
   //   version:int>=0, dates:list<=1000. Regular owners filter ownerUid; administrators may list all.
   // courses/{id}/private/config: students:list<=5000, groups:list<=30, demo:bool.
@@ -28,7 +29,8 @@ service cloud.firestore {
   }
   // Manual approval is account-specific, privileged provisioning, not email verification.
   function approvedAccount() {
-   return verified() || (signed()
+   return (verified() && (request.auth.token.get('courseAccessApproved', false) == true
+     || request.auth.token.get('administrator', false) == true)) || (signed()
     && request.auth.token.firebase.sign_in_provider != 'anonymous'
     && request.auth.token.administrator == true
     && request.auth.token.manualAccessApproved == true);

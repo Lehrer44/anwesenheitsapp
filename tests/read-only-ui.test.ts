@@ -5,6 +5,10 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {initial,mutate} from '../src/model.ts';
 const server=await createServer({server:{middlewareMode:true,watch:null,hmr:false},optimizeDeps:{noDiscovery:true,include:[]},appType:'custom'});
 try{
+ const {default:Login}=await server.ssrLoadModule('/src/Login.tsx');
+ const login=renderToStaticMarkup(createElement(Login,{onLogin:()=>{}}));
+ assert.ok(login.includes('Neue Konten werden ausschließlich durch die Administration eingerichtet.'));
+ assert.ok(login.includes('Anmelden'));assert.ok(!login.includes('Registrieren'));assert.ok(!login.includes('Konto erstellen'));assert.ok(login.includes('current-password'));
  const {ReadOnlyTable}=await server.ssrLoadModule('/src/ReadOnlyView.tsx');
  const state=initial(2);mutate(state,{action:'addStudents',names:'Ada\nBen',group:state.groups[0].id});mutate(state,{action:'addStudents',names:'Clara',group:state.groups[1].id});
  for(const date of ['2026-10-01','2026-10-08'])mutate(state,{action:'session',date});state.sessions[0].marks[state.students[0].id]='abwesend';

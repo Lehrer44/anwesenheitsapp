@@ -16,7 +16,7 @@ before(async()=>{
  const [host,port]=(process.env.FIRESTORE_EMULATOR_HOST||'127.0.0.1:8080').split(':');
  env=await initializeTestEnvironment({projectId:'demo-kursblick',firestore:{host,port:Number(port),rules:readFileSync('firestore.rules','utf8')}});
  await env.clearFirestore();
- const verified={email_verified:true,firebase:{sign_in_provider:'password' as const}};
+ const verified={email_verified:true,courseAccessApproved:true,firebase:{sign_in_provider:'password' as const}};
  ownerDb=env.authenticatedContext('owner',verified).firestore() as unknown as Firestore;
  otherDb=env.authenticatedContext('other-owner',verified).firestore() as unknown as Firestore;
  groupDb=env.authenticatedContext('group-device',{firebase:{sign_in_provider:'anonymous'}}).firestore() as unknown as Firestore;
@@ -104,6 +104,25 @@ test('explicit manual approval permits only named nonanonymous administrators wi
   await assertFails(setDoc(doc(denied,'administrators','not-approved'),{administrator:true,manualAccessApproved:true}));
  }
  await assertFails(setDoc(doc(approved,'administrators','manually-approved'),{manualAccessApproved:true}));
+});
+
+test('email verification alone never grants course access, even to the original owner',async()=>{
+ const context=(uid:string,claims:Record<string,unknown>={})=>env.authenticatedContext(uid,{email_verified:true,...claims,firebase:{sign_in_provider:'password'}}).firestore() as unknown as Firestore;
+ const stranger=context('verified-stranger'),revoked=context('owner',{courseAccessApproved:false});
+ for(const db of [stranger,revoked]){
+  await assertFails(getDocs(collection(db,'courses')));
+  await assertFails(getDocs(query(collection(db,'courses'),where('ownerUid','==','owner'))));
+  await assertFails(ownerRead(db,courseId));
+  await assertFails(ownerAction(db,'owner',{action:'title',title:'Unauthorized'},courseId));
+  await assertFails(setDoc(doc(db,'courses','unapproved-course'),{ownerUid:db===stranger?'verified-stranger':'owner',title:'No',version:0,dates:[]}));
+  await assertFails(setDoc(doc(db,'users','owner'),{courseAccessApproved:true,administrator:true}));
+ }
+ const teacher=context('selected-teacher',{courseAccessApproved:true}),id='approved-teacher-course';
+ await assertSucceeds(setDoc(doc(teacher,'courses',id),{ownerUid:'selected-teacher',title:'Approved',version:0,dates:[]}));
+ await assertSucceeds(getDocs(query(collection(teacher,'courses'),where('ownerUid','==','selected-teacher'))));
+ await assertFails(ownerRead(teacher,courseId));
+ await assertFails(setDoc(doc(teacher,'users','selected-teacher'),{administrator:true}));
+ await assertSucceeds(deleteDoc(doc(teacher,'courses',id)));
 });
 
 test('three approved administrators share courses without changing ownership; roles cannot be self-granted',async()=>{
@@ -351,7 +370,7 @@ test('confirmed edits immediately return the saved state and live listeners publ
  const batch=writeBatch(ownerDb);for(const [path,value] of await documentsFor(s,id,'owner',0))batch.set(doc(ownerDb,path),value);await batch.commit();
  const snapshots:Awaited<ReturnType<typeof ownerAction>>[]=[],errors:Error[]=[];
  const expected=new Map([[0,(await ownerRead(ownerDb,id)).state]]);
- const observer=env.authenticatedContext('owner',{email_verified:true,firebase:{sign_in_provider:'password'}}).firestore() as unknown as Firestore;
+ const observer=env.authenticatedContext('owner',{email_verified:true,courseAccessApproved:true,firebase:{sign_in_provider:'password'}}).firestore() as unknown as Firestore;
  const stop=watchOwnerCourse(observer,id,value=>snapshots.push(value),error=>errors.push(error));
  const waitFor=async(version:number)=>{
   const limit=Date.now()+10000;
