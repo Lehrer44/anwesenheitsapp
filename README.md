@@ -86,7 +86,7 @@ Neue Konten werden ausschließlich über einen vertrauenswürdigen Projektzugang
 
 Bei ausbleibenden Bestätigungs-E-Mails bleibt ausschließlich die bestehende gezielte Ausnahme für eindeutig zugeordnete Administratorkonten erhalten: `administrator: true` zusammen mit `manualAccessApproved: true`. Das bestätigt nicht den Besitz der E-Mail-Adresse und gilt niemals für anonyme Konten.
 
-Claims sind ausschließlich serverseitig administrativ zu vergeben. Browsercode und Firestore-Dokumente dürfen keine Freigabe oder Rolle vergeben. Ausgestellte ID-Tokens können nach einem Widerruf noch bis zu einer Stunde gültig bleiben; für sofortigen Kontozugriffsentzug zusätzlich das Firebase-Auth-Konto administrativ sperren und die Sitzungserneuerung widerrufen. Bereits gelesene Daten sind nicht rückholbar.
+Claims sind ausschließlich serverseitig administrativ zu vergeben. Browsercode und Firestore-Dokumente dürfen keine Freigabe oder Rolle vergeben. Ausgestellte ID-Tokens können nach einem Widerruf noch bis zu einer Stunde gültig bleiben; für den weiteren Zugriff zusätzlich das Firebase-Auth-Konto administrativ sperren und die Sitzungserneuerung widerrufen. Das verhindert weitere Anmeldungen, macht bestehende Firestore-ID-Tokens aber nicht sofort ungültig. Bereits gelesene Daten sind nicht rückholbar.
 
 `npm run test:auth` prüft Freigabe, tatsächliche E-Mail-Bestätigung, unfreigegebene und widerrufene Konten, bestehende Administratorkonten und anonyme Nutzer im lokalen Demo-Projekt. `npm run test:rules` prüft zusätzlich direkte Datenzugriffe, Selbstfreigabeversuche und die unverändert begrenzten Linkzugänge.
 

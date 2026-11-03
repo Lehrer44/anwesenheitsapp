@@ -19,7 +19,7 @@ test('approved teachers must also verify email; checks and resends preserve the 
  let clock=100000;const email='selected@example.test',uid=await provision(email);
  await claims(uid,{courseAccessApproved:true});
  const access=createAccountAccess(auth,{now:()=>clock,continueUrl:'http://localhost/'});
- await access.ready();assert.equal(access.session(),null);assert.equal(access.pending()?.approved,true);
+ await access.logout();await access.login(email,'test-password-123');assert.equal(access.session(),null);assert.equal(access.pending()?.approved,true);
  assert.equal((await access.resend()).verificationSent,true);assert.equal(auth.languageCode,'de');assert.equal(access.cooldown(),60);
  await assert.rejects(access.resend(),{code:'auth/too-many-requests'});assert.equal(await access.check(),false);
  clock+=61000;assert.equal((await access.resend()).verificationSent,true);
