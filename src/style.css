@@ -339,10 +339,14 @@
 .read-only-matrix .student-column{text-align:right}.read-only-matrix .group-heading{justify-content:space-between}
 .read-only-page .matrix-panel{width:100%;min-width:0}.share-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.share-dialog h2{display:flex;gap:10px;align-items:center}.share-dialog>p{margin:14px 0;line-height:1.6}
 @media(max-width:600px){.read-only-page{padding:18px 10px}.read-only-heading{flex-direction:column;gap:8px}.read-only-heading h1{font-size:21px}}
-/* Bilingual status labels (German above Arabic) in the class view; compact two-line buttons. */
-.group-panel .status-text{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1}
-.group-panel .status-text-de{font-size:11px}
-.group-panel .status-text-ar{font-size:12px;font-weight:600}
+/* Bilingual status labels (Arabic above German) in buttons and attendance tables; compact two-line layout. */
+.status-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1}
+.status-label-ar{font-size:12px;font-weight:600}
+.status-label-de{font-size:10px}
+.group-panel .status-text{display:flex;align-items:center;justify-content:center}
+.group-panel .status-text .status-label-de{font-size:11px}
 .group-panel .status-btn{padding:3px 6px}
-@media(max-width:950px){.group-panel .status-text-de{font-size:10px}.group-panel .status-text-ar{font-size:11px}}
+@media(max-width:950px){.group-panel .status-text .status-label-de{font-size:10px}.group-panel .status-text .status-label-ar{font-size:11px}}
 @media(max-width:760px){.group-panel .status-text{display:none}.group-panel .status-btn{padding:0}}
+.cellstatus:has(.status-label){padding:3px 6px;line-height:1.1}
+.preview-table .cellstatus .status-label-ar{font-size:13px}.preview-table .cellstatus .status-label-de{font-size:11px}
