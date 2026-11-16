@@ -1,3 +1,4 @@
+import StatusLabel from './StatusLabel';
 import {useEffect,useRef} from 'react';
 import {displayClassName,orderedRoster,type State,type Session} from './model';
 
@@ -18,7 +19,7 @@ export default function ClassAttendancePreview({state,session,groupId,onClose}:{
    <h2 id="class-preview-title" dir="auto">{name}</h2>
    <div className="preview-roster"><table className="preview-table"><thead><tr><th scope="col">Status</th><th scope="col">Name</th><th scope="col">Nr.</th></tr></thead>
     <tbody>{pupils.map((p,i)=><tr key={p.id}>
-     <td><span className={'cellstatus '+(session.marks[p.id]||'offen')}>{session.marks[p.id]||'Nicht gemeldet'}</span></td>
+     <td><span className={'cellstatus '+(session.marks[p.id]||'offen')}>{session.marks[p.id]?<StatusLabel status={session.marks[p.id]}/>:'Nicht gemeldet'}</span></td>
      <td className="preview-name" dir="auto">{p.name}</td><td className="preview-number">{i+1}</td>
     </tr>)}</tbody>
    </table></div>
