@@ -19,5 +19,12 @@ try{
  assert.ok(!html.includes('Schülername'));assert.ok(!html.includes('>?<'));assert.ok(html.includes('cellstatus offen"></span>'));
  assert.ok(html.includes('dir="rtl"'));assert.equal((html.match(/class="number-column">1<\/td>/g)||[]).length,2);
  const empty=renderToStaticMarkup(createElement(ReadOnlyTable,{state:initial()}));assert.ok(empty.includes('Noch keine Termine'));assert.ok(!empty.includes('<button'));
- console.log('Read-only UI checks passed: all dates, classes and states, RTL, class numbering, empty list and no buttons or editing controls.');
+ const {ClassHistoryTable}=await server.ssrLoadModule('/src/ClassHistoryDialog.tsx');
+ state.sessions[0].reports[state.groups[0].id]='2026-10-01T10:00:00Z';state.sessions[1].reports[state.groups[0].id]='2026-10-08T10:00:00Z';
+ const history=renderToStaticMarkup(createElement(ClassHistoryTable,{state,groupId:state.groups[0].id}));
+ for(const tag of ['button','input','select','textarea','a'])assert.ok(!new RegExp('<'+tag+'(?:\\s|>)').test(history),`Class history has ${tag}`);
+ for(const text of ['Ada','Ben','01.10.','غياب','اعتذار'])assert.ok(history.includes(text),`History missing ${text}`);
+ assert.ok(!history.includes('08.10.'),'cancelled lesson hidden');assert.ok(!history.includes('Clara'),'other class hidden');
+ assert.ok(renderToStaticMarkup(createElement(ClassHistoryTable,{state:initial(1),groupId:'x'})).includes('Noch keine abgesendeten Termine'));
+ console.log('Read-only UI checks passed: all dates, classes and states, RTL, class numbering, empty list and no buttons or editing controls; class history read-only.');
 }finally{await server.close();}

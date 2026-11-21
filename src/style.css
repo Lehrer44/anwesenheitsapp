@@ -350,3 +350,38 @@
 @media(max-width:760px){.group-panel .status-text{display:none}.group-panel .status-btn{padding:0}}
 .cellstatus:has(.status-label){padding:3px 6px;line-height:1.1}
 .preview-table .cellstatus .status-label-ar{font-size:13px}.preview-table .cellstatus .status-label-de{font-size:11px}
+/* Read-only class history: submitted lessons, newest beside the names, compact for phones. */
+.group-panel .date-tools{display:flex;align-items:center;gap:6px;flex-shrink:0;max-width:60%}
+.group-panel .date-tools select{max-width:none;min-width:0}
+.history-button{display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:0 10px;border:1px solid #9aafa2;border-radius:7px;background:#fff;color:#244b39;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0}
+.history-button:hover{background:#edf3ef}
+.class-history{width:min(760px,100%);max-height:calc(100dvh - 40px);display:flex;flex-direction:column;gap:8px;padding:16px;overflow:hidden;outline:none}
+.history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.history-head h2{margin:0;font-size:18px}
+.history-close{display:grid;place-items:center;width:34px;height:34px;border:1px solid #c9d6ce;border-radius:7px;background:#fff;color:#244b39;cursor:pointer}
+.history-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;padding:0;list-style:none;font-size:11px;color:#38463f;flex-shrink:0}
+.history-legend li{display:flex;align-items:center;gap:4px}
+.history-legend .history-mark{width:18px;height:18px}
+.history-scroll{overflow:auto;min-height:0;border:1px solid #9aafa2;border-radius:6px;--history-name:170px}
+.history-table{border-collapse:separate;border-spacing:0;font-size:12px}
+.history-table th,.history-table td{padding:2px;border-bottom:1px solid #dbe4de;text-align:center;white-space:nowrap;background:#fff}
+.history-table thead th{position:sticky;top:0;z-index:2;background:#dce8df;color:#365544;font-size:11px;font-weight:700;padding:5px 3px}
+.history-table .history-name{position:sticky;right:0;z-index:1;width:var(--history-name);min-width:var(--history-name);max-width:var(--history-name);text-align:right;padding:3px 6px;font-size:14px;font-weight:600;color:#1f3a2e;white-space:normal;line-height:1.2;overflow-wrap:anywhere;border-left:1px solid #c9d6ce}
+.history-table .history-count{position:sticky;right:var(--history-name);z-index:1;min-width:30px;font-weight:700;color:#7c8a82;border-left:1px solid #c9d6ce}
+.history-table .history-count.has-absence{color:#ad242b}
+.history-table thead :is(.history-name,.history-count){z-index:3;background:#dce8df}
+.history-table tbody tr:nth-child(even) :is(th,td){background:#f1f6f2}
+.history-mark{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:4px;color:#fff;vertical-align:middle}
+.history-mark.anwesend{background:#17643b}.history-mark.abwesend{background:#ad242b}.history-mark.entschuldigt{background:#185fa5}
+.history-mark.offen{background:#e4e9e6}
+.history-none{color:#9aa79f}
+.history-empty{margin:8px 0;color:#4f6b5c}
+@media(max-width:760px){
+ .group-panel .history-button{padding:0 8px}.group-panel .history-button span{display:none}
+ .modal-backdrop:has(.class-history){padding:6px}
+ .class-history{padding:10px 8px;max-height:calc(100dvh - 12px);border-radius:10px}
+ .history-scroll{--history-name:112px}
+ .history-table .history-name{font-size:13px;padding:2px 4px}
+ .history-table th,.history-table td{padding:1px}
+ .history-mark{width:22px;height:22px}
+}

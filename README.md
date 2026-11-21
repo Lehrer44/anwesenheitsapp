@@ -169,6 +169,10 @@ Eine bewusst gewählte Auswahl und ungesendete Angaben werden bei Aktualisierung
 Datum und „Zuletzt gesendet“ stehen in einer gemeinsamen Zeile; Klassenname, Leitungsname und zusätzliche Fußhinweise entfallen. Auf dem Handy stehen Name und drei kompakte Statusbuttons in einer Zeile: Haken = anwesend, Kreuz = abwesend, Dokument mit Häkchen und „Entsch.“ = entschuldigt. Zugängliche Beschriftungen nennen weiterhin den vollständigen Status und den Schülernamen.
 
 
+## Verlauf in der Klassenansicht
+
+Neben der Terminauswahl öffnet **Verlauf** (auf dem Handy nur das Symbol) ein reines Anzeigefenster mit allen bereits abgesendeten Terminen der eigenen Klasse. Ausgefallene und noch nicht gesendete Termine erscheinen nicht. Der neueste Termin steht direkt neben den Namen; Namen und Zähler bleiben beim seitlichen Scrollen sichtbar. Farbige Felder zeigen anwesend (Haken, grün), abwesend (Kreuz, rot) und entschuldigt (Dokument, blau); „–“ bedeutet, dass die Person an diesem Termin nicht zur Klasse gehörte. Die Spalte „غياب“ zählt die unentschuldigten Fehlzeiten in den angezeigten Terminen. Das Fenster enthält keine Bedienelemente zum Ändern und nutzt nur die Daten, die der Klassenlink ohnehin lesen darf.
+
 ## Seitenwahl und bestätigte Änderungen
 
 Die Verwaltung merkt sich die Seite im URL-Parameter `view` (Übersicht, Tabelle oder Links). Neuladen erhält die aktuelle Seite. Persönliche Klassenlinks bleiben unverändert und enthalten weiterhin keine Verwaltungsnavigation.
