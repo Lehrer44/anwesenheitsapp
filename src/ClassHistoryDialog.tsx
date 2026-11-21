@@ -38,7 +38,7 @@ export default function ClassHistoryDialog({state,groupId,onClose}:{state:State,
    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();}
    if(e.key==='Tab'){e.preventDefault();e.currentTarget.querySelector<HTMLButtonElement>('.history-close')?.focus();}
   }}>
-   <div className="history-head"><h2 id="class-history-title">Verlauf <span lang="ar" dir="rtl">السجل</span></h2><button type="button" className="history-close" aria-label="Schließen" onClick={onClose}><X size={20}/></button></div>
+   <div className="history-head"><h2 id="class-history-title">Verlauf</h2><button type="button" className="history-close" aria-label="Schließen" onClick={onClose}><X size={20}/></button></div>
    <ClassHistoryTable state={state} groupId={groupId}/>
   </section>
  </div>;
