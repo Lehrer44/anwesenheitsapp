@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {BookOpen,ShieldCheck} from 'lucide-react';
+import {ShieldCheck} from 'lucide-react';
 import {login,resetPassword,configured,pendingAccount,resendVerification,checkVerification,verificationCooldown,logout} from './api';
 import {authErrorMessage,type AccountResult} from './account-auth';
 
@@ -22,7 +22,6 @@ export default function Login({onLogin}:{onLogin:()=>void}){
  async function check(){setBusy(true);setError('');setMessage('');try{accept({ready:await checkVerification(),verificationSent:false});}catch(e){setError(authErrorMessage(e));}finally{setBusy(false);}}
  async function changeAccount(){setBusy(true);try{await logout();setPending(null);setEmail('');setPassword('');setError('');setMessage('');}catch(e){setError(authErrorMessage(e));}finally{setBusy(false);}}
  return <div className="login-page"><section className="login-card">
- <div className="brand"><span className="brandmark"><BookOpen size={22}/></span>Kursblick<span className="branddot">.</span></div>
  <div className="eyebrow">DEINE KURSVERWALTUNG</div><h1>{pending?(pending.approved?'E-Mail bestätigen':'Freigabe erforderlich'):'Willkommen zurück.'}</h1>
  {!configured()?<div className="alert error">Firebase ist noch nicht eingerichtet.</div>:pending?<div className="verification-panel">
   <p>{pending.approved?'Dein Konto ist freigegeben. Bitte bestätige noch deine E-Mail-Adresse:':'Die Kursverwaltung ist nur für ausdrücklich freigegebene Konten zugänglich.'}</p><strong className="verification-email" dir="auto">{pending.email}</strong>
