@@ -385,3 +385,4 @@
  .history-table th,.history-table td{padding:1px}
  .history-mark{width:22px;height:22px}
 }
+.login-card form>label:first-child{margin-top:0}

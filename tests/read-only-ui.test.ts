@@ -7,7 +7,7 @@ const server=await createServer({server:{middlewareMode:true,watch:null,hmr:fals
 try{
  const {default:Login}=await server.ssrLoadModule('/src/Login.tsx');
  const login=renderToStaticMarkup(createElement(Login,{onLogin:()=>{}}));
- assert.ok(login.includes('Neue Konten werden ausschließlich durch die Administration eingerichtet.'));
+ for(const text of ['DEINE KURSVERWALTUNG','Willkommen zurück','Melde dich mit','Kursblick'])assert.ok(!login.includes(text),`Login still shows ${text}`);
  assert.ok(login.includes('Anmelden'));assert.ok(!login.includes('Registrieren'));assert.ok(!login.includes('Konto erstellen'));assert.ok(login.includes('current-password'));
  const {ReadOnlyTable}=await server.ssrLoadModule('/src/ReadOnlyView.tsx');
  const state=initial(2);mutate(state,{action:'addStudents',names:'Ada\nBen',group:state.groups[0].id});mutate(state,{action:'addStudents',names:'Clara',group:state.groups[1].id});

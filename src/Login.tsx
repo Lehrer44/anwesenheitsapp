@@ -22,7 +22,7 @@ export default function Login({onLogin}:{onLogin:()=>void}){
  async function check(){setBusy(true);setError('');setMessage('');try{accept({ready:await checkVerification(),verificationSent:false});}catch(e){setError(authErrorMessage(e));}finally{setBusy(false);}}
  async function changeAccount(){setBusy(true);try{await logout();setPending(null);setEmail('');setPassword('');setError('');setMessage('');}catch(e){setError(authErrorMessage(e));}finally{setBusy(false);}}
  return <div className="login-page"><section className="login-card">
- <div className="eyebrow">DEINE KURSVERWALTUNG</div><h1>{pending?(pending.approved?'E-Mail bestätigen':'Freigabe erforderlich'):'Willkommen zurück.'}</h1>
+ {pending&&<h1>{pending.approved?'E-Mail bestätigen':'Freigabe erforderlich'}</h1>}
  {!configured()?<div className="alert error">Firebase ist noch nicht eingerichtet.</div>:pending?<div className="verification-panel">
   <p>{pending.approved?'Dein Konto ist freigegeben. Bitte bestätige noch deine E-Mail-Adresse:':'Die Kursverwaltung ist nur für ausdrücklich freigegebene Konten zugänglich.'}</p><strong className="verification-email" dir="auto">{pending.email}</strong>
   {error&&<div role="alert" className="alert error">{error}</div>}{message&&<div role="status" className="alert success">{message}</div>}
@@ -32,7 +32,7 @@ export default function Login({onLogin}:{onLogin:()=>void}){
   <details className="verification-help"><summary>Keine E-Mail erhalten?</summary><p>Prüfe Junk-E-Mail, blockierte Absender und die Schreibweise deiner Adresse. Bei Outlook kannst du den Absender als sicheren Absender eintragen und die Mail danach erneut anfordern.</p><p><a href="https://support.microsoft.com/en-us/outlook/filter-junk-email-and-spam-in-outlook" target="_blank" rel="noreferrer">Outlook: sichere Absender verwalten</a></p><p>Kommt weiterhin keine Mail an, muss die Administration den Mailversand prüfen. Eine erneute Registrierung ist nicht nötig.</p></details>
   </>}
   <button type="button" className="textbutton" disabled={busy} onClick={changeAccount}>Mit anderem Konto anmelden</button>
- </div>:<><p>Melde dich mit deinem freigegebenen Konto an. Neue Konten werden ausschließlich durch die Administration eingerichtet. Klassenführer öffnen ihren Klassenlink.</p><form onSubmit={submit}>
+ </div>:<><form onSubmit={submit}>
   <label>E-Mail-Adresse<input autoComplete="email" type="email" disabled={busy} value={email} onChange={e=>setEmail(e.target.value)} required/></label>
   <label>Passwort<input autoComplete="current-password" type="password" disabled={busy} minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required/></label>
   {error&&<div role="alert" className="alert error">{error}</div>}{message&&<div role="status" className="alert success">{message}</div>}
